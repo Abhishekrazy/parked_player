@@ -39,8 +39,9 @@ class SettingsPage extends StatelessWidget {
             child: Text(
               'Appearance',
               style: TextStyle(
-                color: Theme.of(context).primaryColor,
+                color: Theme.of(context).colorScheme.primary,
                 fontWeight: FontWeight.bold,
+                fontSize: 13, letterSpacing: 0.5,
               ),
             ),
           ),
@@ -57,16 +58,10 @@ class SettingsPage extends StatelessWidget {
               onSelectionChanged: (Set<ThemeMode> newSelection) {
                 themeService.updateThemeMode(newSelection.first);
               },
-              style: ButtonStyle(
+              style: SegmentedButton.styleFrom(
                 visualDensity: VisualDensity.compact,
-                backgroundColor: WidgetStateProperty.resolveWith<Color?>(
-                  (Set<WidgetState> states) {
-                    if (states.contains(WidgetState.selected)) {
-                      return Theme.of(context).primaryColor.withValues(alpha: 0.2);
-                    }
-                    return null;
-                  },
-                ),
+                selectedBackgroundColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.2),
+                selectedForegroundColor: Theme.of(context).colorScheme.primary,
               ),
             ),
           ),
@@ -82,16 +77,10 @@ class SettingsPage extends StatelessWidget {
               onSelectionChanged: (Set<ViewMode> newSelection) {
                 themeService.updateViewMode(newSelection.first);
               },
-              style: ButtonStyle(
+              style: SegmentedButton.styleFrom(
                 visualDensity: VisualDensity.compact,
-                backgroundColor: WidgetStateProperty.resolveWith<Color?>(
-                  (Set<WidgetState> states) {
-                    if (states.contains(WidgetState.selected)) {
-                      return Theme.of(context).primaryColor.withValues(alpha: 0.2);
-                    }
-                    return null;
-                  },
-                ),
+                selectedBackgroundColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.2),
+                selectedForegroundColor: Theme.of(context).colorScheme.primary,
               ),
             ),
           ),
@@ -103,8 +92,9 @@ class SettingsPage extends StatelessWidget {
             child: Text(
               'Privacy & Security',
               style: TextStyle(
-                color: Theme.of(context).primaryColor,
+                color: Theme.of(context).colorScheme.primary,
                 fontWeight: FontWeight.bold,
+                fontSize: 13, letterSpacing: 0.5,
               ),
             ),
           ),
@@ -119,7 +109,7 @@ class SettingsPage extends StatelessWidget {
           ),
           ListTile(
             title: const Text('Manage Block List'),
-            trailing: Icon(Icons.arrow_forward_ios_rounded, size: 16, color: Theme.of(context).disabledColor),
+            trailing: Icon(Icons.arrow_forward_ios_rounded, size: 14, color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.5)),
             onTap: () {
               Navigator.of(context).push(
                 MaterialPageRoute(builder: (context) => const AdBlockSettingsPage()),
@@ -134,15 +124,16 @@ class SettingsPage extends StatelessWidget {
             child: Text(
               'Information',
               style: TextStyle(
-                color: Theme.of(context).primaryColor,
+                color: Theme.of(context).colorScheme.primary,
                 fontWeight: FontWeight.bold,
+                fontSize: 13, letterSpacing: 0.5,
               ),
             ),
           ),
           ListTile(
             title: const Text('About'),
             subtitle: const Text('Version, Licenses, and Credits'),
-            trailing: Icon(Icons.arrow_forward_ios_rounded, size: 16, color: Theme.of(context).disabledColor),
+            trailing: Icon(Icons.arrow_forward_ios_rounded, size: 14, color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.5)),
             onTap: () {
               Navigator.of(context).push(
                 MaterialPageRoute(builder: (context) => const AboutPage()),
