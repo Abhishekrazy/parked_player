@@ -66,7 +66,9 @@ Contributions are what make the open-source community such an amazing place to l
 2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
 3. Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
 4. Push to the Branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
+5. Open a Pull Request **against the `dev` branch**
+
+> **Note**: To keep the project stable, all new features and bug fixes should be submitted to the `dev` branch. The `main` branch is reserved for stable production releases. I will personally review all PRs before merging them!
 
 ---
 

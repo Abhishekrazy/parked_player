@@ -23,8 +23,7 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.19.0' # Or your specific version
-          channel: 'stable'
+          channel: 'stable' # This will automatically use the latest stable version
 
       - name: Get Dependencies
         run: flutter pub get
