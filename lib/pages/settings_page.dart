@@ -102,9 +102,18 @@ class SettingsPage extends StatelessWidget {
             title: const Text('Ad & Tracker Blocker'),
             subtitle: const Text('Block intrusive ads and tracking scripts'),
             value: adBlockService.isEnabled,
-            activeThumbColor: Theme.of(context).primaryColor,
+            activeThumbColor: Theme.of(context).colorScheme.primary,
             onChanged: (value) {
               adBlockService.toggleAdBlock(value);
+            },
+          ),
+          SwitchListTile(
+            title: const Text('Desktop Site'),
+            subtitle: const Text('Request desktop version of websites'),
+            value: themeService.isDesktopMode,
+            activeThumbColor: Theme.of(context).colorScheme.primary,
+            onChanged: (value) {
+              themeService.toggleDesktopMode(value);
             },
           ),
           ListTile(

@@ -15,7 +15,8 @@ class SiteItem {
   final int? colorValue;
   final int? iconCode;
   final bool isCustom;
-  final bool isSystem; 
+  final bool isSystem;
+  final bool preferDesktopMode;
 
   SiteItem({
     required this.id,
@@ -27,6 +28,7 @@ class SiteItem {
     this.iconCode,
     this.isCustom = false,
     this.isSystem = false,
+    this.preferDesktopMode = false,
   });
 
   Map<String, dynamic> toJson() {
@@ -40,6 +42,7 @@ class SiteItem {
       'iconCode': iconCode,
       'isCustom': isCustom,
       'isSystem': isSystem,
+      'preferDesktopMode': preferDesktopMode,
     };
   }
 
@@ -54,6 +57,7 @@ class SiteItem {
       iconCode: json['iconCode'],
       isCustom: json['isCustom'] ?? false,
       isSystem: json['isSystem'] ?? false,
+      preferDesktopMode: json['preferDesktopMode'] ?? false,
     );
   }
 }
@@ -175,7 +179,7 @@ class SitesService extends ChangeNotifier {
     _saveSites();
   }
 
-  Future<void> addSite(String name, String url) async {
+  Future<void> addSite(String name, String url, {bool preferDesktopMode = false}) async {
     final domain = Uri.parse(url).host;
     // Token from user for logo.dev
     const token = AppConstants.logoDevToken;
@@ -212,6 +216,7 @@ class SitesService extends ChangeNotifier {
       type: type, 
       asset: localPath, 
       isCustom: true,
+      preferDesktopMode: preferDesktopMode,
       colorValue: 0xFFFFFFFF,
       iconCode: type == 'icon' ? Icons.public.codePoint : null,
     );
@@ -242,7 +247,7 @@ class SitesService extends ChangeNotifier {
     }
   }
 
-  Future<void> editSite(String id, String newName, String newUrl) async {
+  Future<void> editSite(String id, String newName, String newUrl, {bool preferDesktopMode = false}) async {
     final index = _sites.indexWhere((s) => s.id == id);
     if (index != -1) {
       final oldSite = _sites[index];
@@ -302,6 +307,7 @@ class SitesService extends ChangeNotifier {
         iconCode: iconCode,
         isCustom: oldSite.isCustom,
         isSystem: oldSite.isSystem,
+        preferDesktopMode: preferDesktopMode,
       );
 
       await _saveSites();

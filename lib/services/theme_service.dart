@@ -22,6 +22,9 @@ class ThemeService extends ChangeNotifier {
   bool _isIncognito = false;
   bool get isIncognito => _isIncognito;
 
+  bool _isDesktopMode = false;
+  bool get isDesktopMode => _isDesktopMode;
+
   ThemeService() {
     _loadTheme();
   }
@@ -43,6 +46,8 @@ class ThemeService extends ChangeNotifier {
         orElse: () => ViewMode.grid,
       );
     }
+
+    _isDesktopMode = prefs.getBool('isDesktopMode') ?? false;
     
     notifyListeners();
   }
@@ -63,6 +68,13 @@ class ThemeService extends ChangeNotifier {
 
   void toggleIncognito() {
     _isIncognito = !_isIncognito;
+    notifyListeners();
+  }
+
+  Future<void> toggleDesktopMode(bool value) async {
+    _isDesktopMode = value;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('isDesktopMode', value);
     notifyListeners();
   }
 }
