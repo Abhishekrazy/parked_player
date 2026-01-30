@@ -12,18 +12,20 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Setup Java
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           distribution: 'zulu'
           java-version: '17'
+          cache: 'gradle'
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          channel: 'stable' # This will automatically use the latest stable version
+          channel: 'stable'
+          cache: true
 
       - name: Get Dependencies
         run: flutter pub get
@@ -56,7 +58,7 @@ jobs:
         run: flutter build apk --release --no-tree-shake-icons --dart-define='LOGO_DEV_TOKEN=${{ secrets.LOGO_DEV_TOKEN }}'
 
       - name: Build App Bundle
-        run: flutter build appbundle --release --no-tree-shake-icons --dart-define='LOGO_DEV_TOKEN=${{ secrets.LOGO_DEV_TOKEN }}'
+        run: flutter build appbundle --release --no-tree-shake-icons --no-pub --dart-define='LOGO_DEV_TOKEN=${{ secrets.LOGO_DEV_TOKEN }}'
 
       - name: Get Version
         id: get_version
