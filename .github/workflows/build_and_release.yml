@@ -53,10 +53,10 @@ jobs:
           echo "keyAlias=${{ secrets.KEY_ALIAS }}" >> android/key.properties
 
       - name: Build APK
-        run: flutter build apk --release --dart-define=LOGO_DEV_TOKEN=${{ secrets.LOGO_DEV_TOKEN }}
+        run: flutter build apk --release --no-tree-shake-icons --dart-define=LOGO_DEV_TOKEN=${{ secrets.LOGO_DEV_TOKEN }}
 
       - name: Build App Bundle
-        run: flutter build appbundle --release --dart-define=LOGO_DEV_TOKEN=${{ secrets.LOGO_DEV_TOKEN }}
+        run: flutter build appbundle --release --no-tree-shake-icons --dart-define=LOGO_DEV_TOKEN=${{ secrets.LOGO_DEV_TOKEN }}
 
       - name: Get Version
         id: get_version
