@@ -21,6 +21,7 @@ class _VideoLinksPageState extends State<VideoLinksPage> {
   void _showAddSiteDialog(BuildContext context) {
     final nameController = TextEditingController();
     final urlController = TextEditingController(text: 'https://');
+    bool preferDesktopMode = false;
 
     showDialog(
       context: context,
@@ -68,6 +69,21 @@ class _VideoLinksPageState extends State<VideoLinksPage> {
                     focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: Theme.of(context).primaryColor)),
                   ),
                 ),
+                const SizedBox(height: 16),
+                StatefulBuilder(
+                  builder: (context, setDialogState) => SwitchListTile(
+                    title: Text('Desktop Mode', style: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color)),
+                    subtitle: Text('Always open in desktop mode', style: TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.7))),
+                    value: preferDesktopMode,
+                    activeThumbColor: Theme.of(context).primaryColor,
+                    contentPadding: EdgeInsets.zero,
+                    onChanged: (value) {
+                      setDialogState(() {
+                        preferDesktopMode = value;
+                      });
+                    },
+                  ),
+                ),
                 const SizedBox(height: 32),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.end,
@@ -84,7 +100,7 @@ class _VideoLinksPageState extends State<VideoLinksPage> {
                           if (!url.startsWith('http')) {
                             url = 'https://$url';
                           }
-                          Provider.of<SitesService>(context, listen: false).addSite(nameController.text.trim(), url);
+                          Provider.of<SitesService>(context, listen: false).addSite(nameController.text.trim(), url, preferDesktopMode: preferDesktopMode);
                           Navigator.pop(context);
                         }
                       },
@@ -239,7 +255,7 @@ class _SiteListItem extends StatelessWidget {
         ),
         trailing: const Icon(Icons.drag_handle),
         onTap: () {
-           _HoverableCardState.handleTapStatic(context, site.url, site.name, isIncognito, site.isCustom);
+          _HoverableCardState.handleTapStatic(context, site.url, site.name, isIncognito, site.isCustom, preferDesktopMode: site.preferDesktopMode);
         },
         onLongPress: () {
             // Optional: Show context menu for delete if custom
@@ -352,7 +368,7 @@ class _HoverableCardState extends State<_HoverableCard>
     super.dispose();
   }
   
-  static Future<void> handleTapStatic(BuildContext context, String url, String name, bool isIncognito, bool isCustom) async {
+  static Future<void> handleTapStatic(BuildContext context, String url, String name, bool isIncognito, bool isCustom, {bool? preferDesktopMode}) async {
     if (url == 'TOGGLE_INCOGNITO') {
       final themeService = Provider.of<ThemeService>(context, listen: false);
       themeService.toggleIncognito();
@@ -437,6 +453,7 @@ class _HoverableCardState extends State<_HoverableCard>
                     url: finalUrl, 
                     title: 'Web',
                     isIncognito: isIncognito,
+                    preferDesktopMode: preferDesktopMode,
                   ),
             ),
           );
@@ -450,6 +467,7 @@ class _HoverableCardState extends State<_HoverableCard>
                 url: url, 
                 title: name,
                 isIncognito: isIncognito,
+                preferDesktopMode: preferDesktopMode,
               ),
         ),
       );
@@ -457,7 +475,7 @@ class _HoverableCardState extends State<_HoverableCard>
   }
 
   void _handleTap() {
-     handleTapStatic(context, widget.url, widget.name, widget.isIncognito, widget.isCustom);
+    handleTapStatic(context, widget.url, widget.name, widget.isIncognito, widget.isCustom, preferDesktopMode: widget.site?.preferDesktopMode);
   }
 
   void _showOptionsSheet() {
@@ -621,6 +639,7 @@ class _HoverableCardState extends State<_HoverableCard>
 void _showEditSiteDialog(BuildContext context, SiteItem site) {
   final nameController = TextEditingController(text: site.name);
   final urlController = TextEditingController(text: site.url);
+  bool preferDesktopMode = site.preferDesktopMode;
 
   showDialog(
     context: context,
@@ -668,6 +687,21 @@ void _showEditSiteDialog(BuildContext context, SiteItem site) {
                   focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: Theme.of(context).primaryColor)),
                 ),
               ),
+              const SizedBox(height: 16),
+              StatefulBuilder(
+                builder: (context, setDialogState) => SwitchListTile(
+                  title: Text('Desktop Mode', style: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color)),
+                  subtitle: Text('Always open in desktop mode', style: TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.7))),
+                  value: preferDesktopMode,
+                  activeThumbColor: Theme.of(context).primaryColor,
+                  contentPadding: EdgeInsets.zero,
+                  onChanged: (value) {
+                    setDialogState(() {
+                      preferDesktopMode = value;
+                    });
+                  },
+                ),
+              ),
               const SizedBox(height: 32),
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,
@@ -684,7 +718,7 @@ void _showEditSiteDialog(BuildContext context, SiteItem site) {
                         if (!url.startsWith('http')) {
                           url = 'https://$url';
                         }
-                        Provider.of<SitesService>(context, listen: false).editSite(site.id, nameController.text.trim(), url);
+                        Provider.of<SitesService>(context, listen: false).editSite(site.id, nameController.text.trim(), url, preferDesktopMode: preferDesktopMode);
                         Navigator.pop(context);
                       }
                     },

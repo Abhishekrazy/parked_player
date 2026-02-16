@@ -12,19 +12,20 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Setup Java
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           distribution: 'zulu'
           java-version: '17'
+          cache: 'gradle'
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.19.0' # Or your specific version
           channel: 'stable'
+          cache: true
 
       - name: Get Dependencies
         run: flutter pub get
@@ -49,15 +50,15 @@ jobs:
       - name: Create key.properties
         run: |
           echo "storeFile=release.keystore" > android/key.properties
-          echo "storePassword=${{ secrets.STORE_PASSWORD }}" >> android/key.properties
-          echo "keyPassword=${{ secrets.KEY_PASSWORD }}" >> android/key.properties
-          echo "keyAlias=${{ secrets.KEY_ALIAS }}" >> android/key.properties
+          echo 'storePassword=${{ secrets.STORE_PASSWORD }}' >> android/key.properties
+          echo 'keyPassword=${{ secrets.KEY_PASSWORD }}' >> android/key.properties
+          echo 'keyAlias=${{ secrets.KEY_ALIAS }}' >> android/key.properties
 
       - name: Build APK
-        run: flutter build apk --release --dart-define=LOGO_DEV_TOKEN=${{ secrets.LOGO_DEV_TOKEN }}
+        run: flutter build apk --release --no-tree-shake-icons --dart-define='LOGO_DEV_TOKEN=${{ secrets.LOGO_DEV_TOKEN }}'
 
       - name: Build App Bundle
-        run: flutter build appbundle --release --dart-define=LOGO_DEV_TOKEN=${{ secrets.LOGO_DEV_TOKEN }}
+        run: flutter build appbundle --release --no-tree-shake-icons --no-pub --dart-define='LOGO_DEV_TOKEN=${{ secrets.LOGO_DEV_TOKEN }}'
 
       - name: Get Version
         id: get_version
