@@ -8,6 +8,7 @@ import 'settings_page.dart';
 import 'webview_page.dart';
 import '../services/theme_service.dart';
 import '../services/sites_service.dart';
+import '../services/session_service.dart';
 
 class VideoLinksPage extends StatefulWidget {
   const VideoLinksPage({super.key});
@@ -17,7 +18,53 @@ class VideoLinksPage extends StatefulWidget {
 }
 
 class _VideoLinksPageState extends State<VideoLinksPage> {
-  
+  static bool _sessionChecked = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (!_sessionChecked) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _attemptSessionRestore();
+      });
+    }
+  }
+
+  void _attemptSessionRestore() {
+    final sessionService = Provider.of<SessionService>(context, listen: false);
+    if (!sessionService.isLoaded) {
+      // If not loaded, listen for changes
+      void listener() {
+        if (!mounted) return;
+        if (sessionService.isLoaded) {
+          sessionService.removeListener(listener);
+          _performRestore(sessionService);
+        }
+      }
+
+      sessionService.addListener(listener);
+    } else {
+      _performRestore(sessionService);
+    }
+  }
+
+  void _performRestore(SessionService sessionService) {
+    if (_sessionChecked) return;
+
+    // Check again if mounted just in case
+    if (!mounted) return;
+
+    if (sessionService.isRestoreEnabled && sessionService.hasSession) {
+      _sessionChecked = true;
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => WebViewPage(url: sessionService.lastSessionUrl!, title: sessionService.lastSessionTitle ?? 'Restored Session'),
+        ),
+      );
+    }
+  }
+
   void _showAddSiteDialog(BuildContext context) {
     final nameController = TextEditingController();
     final urlController = TextEditingController(text: 'https://');

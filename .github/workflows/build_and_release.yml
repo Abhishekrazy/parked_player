@@ -75,3 +75,16 @@ jobs:
             build/app/outputs/flutter-apk/app-release.apk
             build/app/outputs/bundle/release/app-release.aab
           token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Deploy AAB to Indus Appstore
+        uses: indusappstore/appstore-release@v1
+        with:
+          file_path: 'build/app/outputs/bundle/release/app-release.aab'
+          file_type: 'aab'
+          package_name: 'com.abhishekrazy.parkedplayer'
+          api_token: ${{ secrets.INDUS_APP_STORE_API_TOKEN }}
+          keystore_source: 'base64'
+          keystore_base64: ${{ secrets.KEYSTORE_BASE64 }}
+          keystore_password: ${{ secrets.STORE_PASSWORD }}
+          key_alias: ${{ secrets.KEY_ALIAS }}
+          key_password: ${{ secrets.KEY_PASSWORD }}

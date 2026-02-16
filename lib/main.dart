@@ -1,20 +1,32 @@
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:unity_ads_plugin/unity_ads_plugin.dart';
 import 'pages/home_page.dart';
 import 'services/ad_block_service.dart';
 import 'services/theme_service.dart';
 import 'services/bookmark_service.dart';
 import 'services/sites_service.dart';
+import 'services/session_service.dart';
+import 'services/history_service.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await UnityAds.init(
+    gameId: '6047584',
+    testMode: true,
+    onComplete: () => debugPrint('Initialization Complete'),
+    onFailed: (error, message) => debugPrint('Initialization Failed: $error $message'),
+  );
+  
   runApp(
     MultiProvider(
       providers: [
+        ChangeNotifierProvider(create: (_) => HistoryService()),
         ChangeNotifierProvider(create: (_) => AdBlockService()),
         ChangeNotifierProvider(create: (_) => ThemeService()),
         ChangeNotifierProvider(create: (_) => BookmarkService()),
         ChangeNotifierProvider(create: (_) => SitesService()),
+        ChangeNotifierProvider(create: (_) => SessionService()),
       ],
       child: const MyApp(),
     ),

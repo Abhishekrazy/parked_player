@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/theme_service.dart';
 import '../services/ad_block_service.dart';
+import '../services/session_service.dart';
 import 'about_page.dart';
 import 'adblock_settings_page.dart';
 
@@ -12,6 +13,7 @@ class SettingsPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final themeService = Provider.of<ThemeService>(context);
     final adBlockService = Provider.of<AdBlockService>(context);
+    final sessionService = Provider.of<SessionService>(context);
 
     // Filter out restricted domains that shouldn't be shown/edited manually if complex
     // For now, custom block list is removed to simplify settings as per "Appearance" and "Privacy" structure request.
@@ -83,6 +85,25 @@ class SettingsPage extends StatelessWidget {
                 selectedForegroundColor: Theme.of(context).colorScheme.primary,
               ),
             ),
+          ),
+          Divider(color: Theme.of(context).dividerColor.withValues(alpha: 0.1)),
+
+          // Startup
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            child: Text(
+              'Startup',
+              style: TextStyle(color: Theme.of(context).colorScheme.primary, fontWeight: FontWeight.bold, fontSize: 13, letterSpacing: 0.5),
+            ),
+          ),
+          SwitchListTile(
+            title: const Text('Restore Last Session'),
+            subtitle: const Text('Re-open last visited page on startup'),
+            value: sessionService.isRestoreEnabled,
+            activeThumbColor: Theme.of(context).colorScheme.primary,
+            onChanged: (value) {
+              sessionService.toggleRestoreEnabled(value);
+            },
           ),
           Divider(color: Theme.of(context).dividerColor.withValues(alpha: 0.1)),
 

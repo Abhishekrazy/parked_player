@@ -1,10 +1,19 @@
-
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:unity_ads_plugin/unity_ads_plugin.dart'; // Unity Ads
+import 'package:shared_preferences/shared_preferences.dart';
 import '../services/ad_block_service.dart';
 import '../services/bookmark_service.dart';
 import '../services/theme_service.dart';
+import '../services/sites_service.dart';
+import '../services/session_service.dart';
+import '../services/history_service.dart';
+import 'settings_page.dart';
+import 'history_page.dart';
 
 class WebViewPage extends StatefulWidget {
   final String url;
@@ -23,173 +32,144 @@ class WebViewPage extends StatefulWidget {
   State<WebViewPage> createState() => _WebViewPageState();
 }
 
-class _WebViewPageState extends State<WebViewPage> {
+class _WebViewPageState extends State<WebViewPage> with SingleTickerProviderStateMixin {
   InAppWebViewController? _webViewController;
+  late TextEditingController _urlController;
   late String _currentUrl;
   late String _currentTitle;
   bool _isLoading = true;
   bool _canGoBack = false;
   bool _isDesktopMode = false;
+  bool _isHeaderVisible = true;
+  bool _isfullscreen = false;
+  final FocusNode _urlFocusNode = FocusNode();
+
+  // Ad variables
+  bool _isAdLoaded = false;
+  static const String _placementId = 'Interstitial_Android'; 
 
   @override
   void initState() {
     super.initState();
     _currentUrl = widget.url;
     _currentTitle = widget.title;
-    final themeService = Provider.of<ThemeService>(context, listen: false);
-    _isDesktopMode = widget.preferDesktopMode ?? themeService.isDesktopMode;
-    
-    if (widget.isIncognito) {
-      CookieManager.instance().deleteAllCookies();
+    _urlController = TextEditingController(text: _currentUrl);
+    _isDesktopMode = widget.preferDesktopMode ?? false;
+
+    // Load ad
+    _loadInterstitialAd();
+  }
+
+  void _loadInterstitialAd() {
+    UnityAds.load(
+      placementId: _placementId,
+      onComplete: (placementId) {
+        debugPrint('Load Complete $placementId');
+        setState(() {
+          _isAdLoaded = true;
+        });
+      },
+      onFailed: (placementId, error, message) => debugPrint('Load Failed $placementId: $error $message'),
+    );
+  }
+
+  Future<void> _showInterstitialAd() async {
+    if (_isAdLoaded) {
+      final prefs = await SharedPreferences.getInstance();
+      final hasShown = prefs.getBool('has_shown_welcome_ad') ?? false;
+      
+      if (!hasShown) {
+        UnityAds.showVideoAd(
+          placementId: _placementId,
+          onStart: (placementId) => debugPrint('Video Ad $placementId started'),
+          onClick: (placementId) => debugPrint('Video Ad $placementId click'),
+          onSkipped: (placementId) => debugPrint('Video Ad $placementId skipped'),
+          onComplete: (placementId) {
+            debugPrint('Video Ad $placementId completed');
+            _isAdLoaded = false;
+          },
+          onFailed: (placementId, error, message) => debugPrint('Video Ad $placementId failed: $error $message'),
+        );
+        
+        await prefs.setBool('has_shown_welcome_ad', true);
+      }
     }
   }
 
-  InAppWebViewSettings get _browserSettings {
-    final userAgent = _isDesktopMode
-        ? "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"
-        : "Mozilla/5.0 (Linux; Android 14; Pixel 8 Pro) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Mobile Safari/537.36";
-
-    return InAppWebViewSettings(
-      userAgent: userAgent,
-      preferredContentMode: _isDesktopMode ? UserPreferredContentMode.DESKTOP : UserPreferredContentMode.MOBILE,
-      useWideViewPort: true,
-      loadWithOverviewMode: true,
-      javaScriptEnabled: true,
-      domStorageEnabled: true,
-      databaseEnabled: true,
-      mediaPlaybackRequiresUserGesture: false,
-      allowsInlineMediaPlayback: true,
-      builtInZoomControls: true,
-      displayZoomControls: false,
-      supportZoom: true,
-      transparentBackground: true,
-      safeBrowsingEnabled: true,
-      thirdPartyCookiesEnabled: true,
-      mixedContentMode: MixedContentMode.MIXED_CONTENT_ALWAYS_ALLOW,
-      // KILL THE WEBVIEW SIGNATURE
-      useShouldInterceptRequest: true,
-    );
+  @override
+  void dispose() {
+    _urlController.dispose();
+    _urlFocusNode.dispose();
+    super.dispose();
   }
 
   void _toggleDesktopMode() {
     setState(() {
       _isDesktopMode = !_isDesktopMode;
-      _isLoading = true;
     });
     _webViewController?.setSettings(settings: _browserSettings);
     _webViewController?.reload();
   }
+  
+  void _toggleFullscreenVideo() {
+    if (_isfullscreen) {
+      // Exit fullscreen
+      SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+      SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp, DeviceOrientation.portraitDown, DeviceOrientation.landscapeLeft, DeviceOrientation.landscapeRight]);
+    } else {
+      // Enter fullscreen
+      SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+      SystemChrome.setPreferredOrientations([DeviceOrientation.landscapeLeft, DeviceOrientation.landscapeRight]);
+    }
+    setState(() {
+      _isfullscreen = !_isfullscreen;
+      _isHeaderVisible = !_isfullscreen; // Hide header in fullscreen
+    });
+  }
 
-  void _forceFullscreenVideo() {
-    _webViewController?.evaluateJavascript(
-      source: """
-      (function() {
-        var videos = document.getElementsByTagName('video');
-        if (videos.length > 0) {
-          var v = videos[0];
-          v.style.position = 'fixed';
-          v.style.top = '0';
-          v.style.left = '0';
-          v.style.width = '100vw';
-          v.style.height = '100vh';
-          v.style.zIndex = '999999';
-          v.style.backgroundColor = 'black';
-          
-          var container = v.parentElement;
-          while(container && container !== document.body) {
-             container.style.position = 'static';
-             container.style.transform = 'none';
-             container = container.parentElement;
-          }
-        }
-      })();
-    """,
+  InAppWebViewSettings get _browserSettings {
+    return InAppWebViewSettings(
+      isInspectable: true,
+      mediaPlaybackRequiresUserGesture: false,
+      allowsInlineMediaPlayback: true,
+      iframeAllow: "camera; microphone",
+      iframeAllowFullscreen: true,
+      userAgent: _isDesktopMode ? "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" : null,
+      preferredContentMode: _isDesktopMode ? UserPreferredContentMode.DESKTOP : UserPreferredContentMode.MOBILE,
+      useHybridComposition: true,
+      useShouldInterceptRequest: true,
     );
   }
 
-  void _injectStealthAndFixes() {
-    _webViewController?.evaluateJavascript(
-      source:
-          """
-      (function() {
-        const isDesktop = $_isDesktopMode;
-        
-        // 1. Critical: Hide WebView/Automation
-        Object.defineProperty(navigator, 'webdriver', {get: () => false});
-        window.navigator.chrome = {
-          runtime: {},
-          loadTimes: function() {},
-          csi: function() {},
-          app: { isInstalled: false }
-        };
+  Future<void> _injectStealthAndFixes() async {
+    const js = """
+      // Remove ad placeholders
+      document.querySelectorAll('div[id^="google_ads"], div[class*="ad-container"]').forEach(el => el.remove());
+      
+      // Fix specific site issues (e.g. Hotstar)
+      if (window.location.hostname.includes('hotstar.com')) {
+         // ... custom fixes ...
+      }
+    """;
+    await _webViewController?.evaluateJavascript(source: js);
+  }
 
-        // 2. Spoof Platform & Identity
-        const platform = isDesktop ? 'Win32' : 'Linux armv8l';
-        Object.defineProperty(navigator, 'platform', { get: () => platform });
-        Object.defineProperty(navigator, 'vendor', { get: () => 'Google Inc.' });
-
-        // 3. Spoof Hardware Fingerprint
-        Object.defineProperty(navigator, 'deviceMemory', { get: () => 8 });
-        Object.defineProperty(navigator, 'hardwareConcurrency', { get: () => 8 });
-        Object.defineProperty(navigator, 'maxTouchPoints', { get: () => isDesktop ? 0 : 10 });
-
-        // 4. Fix Permissions API
-        const originalQuery = window.navigator.permissions.query;
-        window.navigator.permissions.query = (parameters) => (
-          parameters.name === 'notifications' ?
-            Promise.resolve({ state: Notification.permission }) :
-            originalQuery(parameters)
-        );
-
-        // 5. UserAgentData
-        if (navigator.userAgentData) {
-          Object.defineProperty(navigator.userAgentData, 'platform', { get: () => isDesktop ? 'Windows' : 'Android' });
-          Object.defineProperty(navigator.userAgentData, 'mobile', { get: () => !isDesktop });
-          Object.defineProperty(navigator.userAgentData, 'brands', { 
-            get: () => [
-              {brand: 'Not/A)Brand', version: '8'}, 
-              {brand: 'Chromium', version: '126'}, 
-              {brand: 'Google Chrome', version: '126'}
-            ] 
-          });
-        }
-        
-        Object.defineProperty(navigator, 'languages', { get: () => ['en-US', 'en'] });
-        
-        // Video Fill Fixes
-        var style = document.createElement('style');
-        style.innerHTML = `
-          video { width: 100% !important; height: auto !important; max-height: 100vh !important; } 
-          .vjs-tech { width: 100% !important; height: 100% !important; }
-        `;
-        document.head.appendChild(style);
-
-        // Viewport Fixes
-        if (isDesktop) {
-          var meta = document.querySelector('meta[name="viewport"]');
-          const content = 'width=1280, initial-scale=0.35, maximum-scale=5.0, user-scalable=yes';
-          if (meta) {
-            meta.setAttribute('content', content);
-          } else {
-            meta = document.createElement('meta');
-            meta.name = 'viewport';
-            meta.content = content;
-            document.getElementsByTagName('head')[0].appendChild(meta);
-          }
-          document.documentElement.style.minWidth = '1280px';
-          document.body.style.minWidth = '1280px';
-        }
-
-        if (window.Android) { window.Android = undefined; }
-      })();
-    """,
-    );
-    
-    final adBlockService = Provider.of<AdBlockService>(context, listen: false);
-    if (adBlockService.isEnabled) {
-      _webViewController?.evaluateJavascript(source: adBlockService.adBlockJs);
+  void _updateSession(String url, String title) {
+    if (!widget.isIncognito) {
+      // CORRECTED METHOD NAME: saveSession instead of updateSession
+      Provider.of<SessionService>(context, listen: false).saveSession(url, title);
     }
   }
+
+  void _loadUrl(String url) {
+    if (!url.startsWith('http')) {
+      url = 'https://$url';
+    }
+    _webViewController?.loadUrl(urlRequest: URLRequest(url: WebUri(url)));
+    _urlFocusNode.unfocus();
+  }
+
+  int _scrollY = 0;
 
   @override
   Widget build(BuildContext context) {
@@ -207,160 +187,296 @@ class _WebViewPageState extends State<WebViewPage> {
         backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         body: Stack(
           children: [
-            Column(
-              children: [
-                if (!isLandscape)
-                  SafeArea(
-                    bottom: false,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-                      color: Theme.of(context).appBarTheme.backgroundColor,
-                      child: Row(
-                        children: [
-                          IconButton(
-                            icon: Icon(Icons.arrow_back_ios_new_rounded,
-                                size: 20, color: Theme.of(context).iconTheme.color),
-                            onPressed: () async {
-                              if (await _webViewController?.canGoBack() ?? false) {
-                                _webViewController?.goBack();
-                              } else {
-                                if (context.mounted) Navigator.of(context).pop();
-                              }
-                            },
-                          ),
-                          ConstrainedBox(
-                            constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.3),
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  _currentTitle,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.bold,
-                                    color: Theme.of(context).appBarTheme.titleTextStyle?.color,
+            SafeArea(
+              top: true,
+              bottom: false,
+              child: Column(
+                children: [
+                  if (!isLandscape)
+                    AnimatedSize(
+                      duration: const Duration(milliseconds: 200),
+                      child: SizedBox(
+                        height: _isHeaderVisible ? null : 0,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+                          color: Theme.of(context).appBarTheme.backgroundColor,
+                          child: Row(
+                            children: [
+                              IconButton(
+                                icon: Icon(Icons.arrow_back_ios_new_rounded, size: 20, color: Theme.of(context).iconTheme.color),
+                                onPressed: () async {
+                                  if (await _webViewController?.canGoBack() ?? false) {
+                                    _webViewController?.goBack();
+                                  } else {
+                                    if (context.mounted) Navigator.of(context).pop();
+                                  }
+                                },
+                              ),
+                              Expanded(
+                                child: Container(
+                                  height: 40,
+                                  decoration: BoxDecoration(color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5), borderRadius: BorderRadius.circular(20)),
+                                  child: Row(
+                                    children: [
+                                      if (widget.isIncognito)
+                                        const Padding(
+                                          padding: EdgeInsets.only(left: 12, right: 4),
+                                          child: Icon(Icons.privacy_tip_outlined, size: 16, color: Colors.redAccent),
+                                        )
+                                      else if (_currentUrl.startsWith("https"))
+                                        Padding(
+                                          padding: const EdgeInsets.only(left: 12, right: 4),
+                                          child: Icon(Icons.lock_rounded, size: 14, color: Theme.of(context).colorScheme.primary),
+                                        ),
+                                      Expanded(
+                                        child: TextField(
+                                          controller: _urlController,
+                                          focusNode: _urlFocusNode,
+                                          decoration: const InputDecoration(border: InputBorder.none, contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 10), isDense: true,
+                                          ),
+                                          style: TextStyle(
+                                            fontSize: 14, color: Theme.of(context).textTheme.bodyMedium?.color),
+                                          keyboardType: TextInputType.url,
+                                          textInputAction: TextInputAction.go,
+                                          onSubmitted: _loadUrl,
+                                        ),
+                                      ),
+                                      if (_urlFocusNode.hasFocus)
+                                        IconButton(
+                                          icon: const Icon(Icons.cancel, size: 16),
+                                          onPressed: () {
+                                            _urlController.clear();
+                                          },
+                                        ),
+                                    ],
                                   ),
                                 ),
-                                if (widget.isIncognito)
-                                  const Text(
-                                    'INCOGNITO',
-                                    style: TextStyle(
-                                        fontSize: 9,
-                                        color: Colors.redAccent,
-                                        fontWeight: FontWeight.bold),
-                                  ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: SingleChildScrollView(
-                              scrollDirection: Axis.horizontal,
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  IconButton(
-                                    icon: Icon(
-                                      _isDesktopMode ? Icons.desktop_mac_rounded : Icons.phone_android_rounded,
-                                      size: 20,
-                                      color: _isDesktopMode ? Theme.of(context).primaryColor : Theme.of(context).iconTheme.color,
-                                    ),
-                                    tooltip: _isDesktopMode ? 'Switch to Mobile' : 'Switch to Desktop',
-                                    onPressed: _toggleDesktopMode,
-                                  ),
-                                  IconButton(icon: const Icon(Icons.fullscreen_rounded, size: 20), tooltip: 'Force Fullscreen Video', onPressed: _forceFullscreenVideo),
-                                  if (!widget.isIncognito)
-                                    Consumer<BookmarkService>(
-                                      builder: (context, bookmarkService, child) {
-                                        final isBookmarked = bookmarkService.isBookmarked(_currentUrl);
-                                        return IconButton(
-                                          icon: Icon(isBookmarked ? Icons.bookmark : Icons.bookmark_border, color: isBookmarked ? Theme.of(context).primaryColor : Theme.of(context).iconTheme.color),
-                                          onPressed: () {
-                                            if (isBookmarked) {
-                                              bookmarkService.removeBookmark(_currentUrl);
-                                            } else {
-                                              bookmarkService.addBookmark(_currentTitle.isEmpty ? _currentUrl : _currentTitle, _currentUrl);
-                                            }
-                                          },
-                                        );
-                                      },
-                                    ),
-                                  IconButton(
-                                    icon: Icon(Icons.refresh_rounded, color: Theme.of(context).iconTheme.color),
-                                    onPressed: () {
-                                      _webViewController?.reload();
-                                    },
-                                  ),
-                                  IconButton(
-                                    icon: Icon(Icons.close_rounded, color: Theme.of(context).disabledColor),
-                                    onPressed: () {
-                                      Navigator.of(context).pop();
-                                    },
-                                  ),
-                                ],
                               ),
-                            ),
+                              IconButton(
+                                icon: Icon(Icons.refresh_rounded, color: Theme.of(context).iconTheme.color),
+                                onPressed: () {
+                                  _webViewController?.reload();
+                                },
+                              ),
+                              PopupMenuButton<String>(
+                                icon: Icon(Icons.more_vert_rounded, color: Theme.of(context).iconTheme.color),
+                                offset: const Offset(0, 45),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                onSelected: (value) async {
+                                  if (value == 'settings') {
+                                    Navigator.push(context, MaterialPageRoute(builder: (context) => const SettingsPage()));
+                                  } else if (value == 'history') {
+                                    final result = await Navigator.push(context, MaterialPageRoute(builder: (context) => const HistoryPage()));
+                                    if (result != null && result is String) {
+                                      _loadUrl(result);
+                                    }
+                                  } else if (value == 'desktop') {
+                                    _toggleDesktopMode();
+                                  } else if (value == 'fullscreen') {
+                                    _toggleFullscreenVideo();
+                                  } else if (value == 'bookmark') {
+                                    final bookmarkService = Provider.of<BookmarkService>(context, listen: false);
+                                    if (bookmarkService.isBookmarked(_currentUrl)) {
+                                      bookmarkService.removeBookmark(_currentUrl);
+                                    } else {
+                                      bookmarkService.addBookmark(_currentTitle.isEmpty ? _currentUrl : _currentTitle, _currentUrl);
+                                    }
+                                  } else if (value == 'copy') {
+                                    await Clipboard.setData(ClipboardData(text: _currentUrl));
+                                    if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('URL Copied'), duration: Duration(seconds: 1)));
+                                  } else if (value == 'share') {
+                                    Share.share(_currentUrl);
+                                  }
+                                },
+                                itemBuilder: (context) {
+                                  final isBookmarked = Provider.of<BookmarkService>(context, listen: false).isBookmarked(_currentUrl);
+                                  return [
+                                    if (_urlFocusNode.hasFocus) ...[
+                                      const PopupMenuItem(
+                                        value: 'copy',
+                                        child: Row(children: [Icon(Icons.copy, size: 20), SizedBox(width: 12), Text('Copy URL')]),
+                                      ),
+                                      const PopupMenuItem(
+                                        value: 'share',
+                                        child: Row(children: [Icon(Icons.share, size: 20), SizedBox(width: 12), Text('Share URL')]),
+                                      ),
+                                    ],
+                                    PopupMenuItem(
+                                      value: 'desktop',
+                                      child: Row(
+                                        children: [
+                                          Icon(_isDesktopMode ? Icons.phone_android : Icons.desktop_mac, size: 20),
+                                          const SizedBox(width: 12),
+                                          Text(_isDesktopMode ? 'Mobile Site' : 'Desktop Site'),
+                                        ],
+                                      ),
+                                    ),
+                                    const PopupMenuItem(
+                                      value: 'fullscreen',
+                                      child: Row(children: [Icon(Icons.fullscreen, size: 20), SizedBox(width: 12), Text('Toggle Fullscreen')]),
+                                    ),
+                                    if (!widget.isIncognito) ...[
+                                      PopupMenuItem(
+                                        value: 'bookmark',
+                                        child: Row(
+                                          children: [
+                                            Icon(isBookmarked ? Icons.bookmark : Icons.bookmark_border, size: 20),
+                                            const SizedBox(width: 12),
+                                            Text(isBookmarked ? 'Remove Bookmark' : 'Bookmark'),
+                                          ],
+                                        ),
+                                      ),
+                                      const PopupMenuItem(
+                                        value: 'history',
+                                        child: Row(children: [Icon(Icons.history, size: 20), SizedBox(width: 12), Text('History')]),
+                                      ),
+                                    ],
+                                    const PopupMenuItem(
+                                      value: 'settings',
+                                      child: Row(children: [Icon(Icons.settings, size: 20), SizedBox(width: 12), Text('Settings')],
+                                      ),
+                                    ),
+                                  ];
+                                },
+                              ),
+                            ],
                           ),
-                        ],
+                        ),
+                      ),
+                    ),
+                  Expanded(
+                    child: Listener(
+                      onPointerMove: (details) {
+                        // Only toggle header if NOT in exclusive fullscreen mode
+                        if (!_isfullscreen) {
+                          // Swipe Up to Hide
+                          if (details.delta.dy < -10 && _isHeaderVisible) {
+                            setState(() => _isHeaderVisible = false);
+                          }
+                          // Swipe Down to Show - ONLY if scrolled to top
+                          if (details.delta.dy > 10 && !_isHeaderVisible && _scrollY <= 0) {
+                            setState(() => _isHeaderVisible = true);
+                          }
+                        }
+                      },
+                      child: InAppWebView(
+                        initialUrlRequest: URLRequest(url: WebUri(_currentUrl), headers: {"X-Requested-With": ""}),
+                        initialSettings: _browserSettings,
+                        onWebViewCreated: (controller) {
+                          _webViewController = controller;
+                          if (_currentUrl.contains('hotstar.com')) {
+                            controller.evaluateJavascript(source: "window.localStorage.clear(); window.sessionStorage.clear();");
+                          }
+                        },
+                        onScrollChanged: (controller, x, y) {
+                          _scrollY = y;
+                        },
+                        onPermissionRequest: (controller, request) async {
+                          return PermissionResponse(resources: request.resources, action: PermissionResponseAction.GRANT);
+                        },
+                        shouldInterceptRequest: (controller, request) async {
+                          if (request.headers != null) {
+                            request.headers?.remove("X-Requested-With");
+                            request.headers?.remove("x-requested-with");
+                          }
+                          return null;
+                        },
+                        onLoadStart: (controller, url) {
+                          setState(() {
+                            _isLoading = true;
+                            _currentUrl = url.toString();
+                            if (!_urlFocusNode.hasFocus) {
+                              _urlController.text = _currentUrl;
+                            }
+                          });
+                          _injectStealthAndFixes();
+                        },
+                        onLoadStop: (controller, url) async {
+                          final title = await controller.getTitle();
+                          final canGoBack = await controller.canGoBack();
+                          setState(() {
+                            _isLoading = false;
+                            if (url != null) {
+                              _currentUrl = url.toString();
+                              if (!_urlFocusNode.hasFocus) {
+                                _urlController.text = _currentUrl;
+                              }
+                              _updateSession(_currentUrl, title ?? '');
+
+                              // Add to history
+                              if (!widget.isIncognito) {
+                                Provider.of<HistoryService>(context, listen: false).addToHistory(_currentUrl, title ?? '');
+                              }
+                            }
+                            if (title != null && title.isNotEmpty) _currentTitle = title;
+                            _canGoBack = canGoBack;
+                          });
+                          _injectStealthAndFixes();
+                          
+                          // Show Ad if needed
+                          _showInterstitialAd();
+                        },
+                        onUpdateVisitedHistory: (controller, url, androidIsReload) async {
+                          if (url != null) {
+                            setState(() {
+                              _currentUrl = url.toString();
+                              if (!_urlFocusNode.hasFocus) {
+                                _urlController.text = _currentUrl;
+                              }
+                            });
+                            final title = await controller.getTitle();
+                            _updateSession(_currentUrl, title ?? '');
+                            // Add to history
+                            if (!widget.isIncognito) {
+                              Provider.of<HistoryService>(context, listen: false).addToHistory(_currentUrl, title ?? '');
+                            }
+                          }
+                        },
+                        onProgressChanged: (controller, progress) {
+                          if (progress > 10 && progress < 90) {
+                            _injectStealthAndFixes();
+                          }
+                          if (progress == 100) {
+                            setState(() {
+                              _isLoading = false;
+                            });
+                          }
+                        },
                       ),
                     ),
                   ),
-                Expanded(
-                  child: InAppWebView(
-                    initialUrlRequest: URLRequest(url: WebUri(_currentUrl), headers: {"X-Requested-With": ""}),
-                    initialSettings: _browserSettings,
-                    onWebViewCreated: (controller) {
-                      _webViewController = controller;
-                      if (_currentUrl.contains('hotstar.com')) {
-                        controller.evaluateJavascript(source: "window.localStorage.clear(); window.sessionStorage.clear();");
-                      }
-                    },
-                    onPermissionRequest: (controller, request) async {
-                      // CRITICAL FOR DRM: Explicitly allow protected media
-                      return PermissionResponse(resources: request.resources, action: PermissionResponseAction.GRANT);
-                    },
-                    shouldInterceptRequest: (controller, request) async {
-                      if (request.headers != null) {
-                        request.headers?.remove("X-Requested-With");
-                        request.headers?.remove("x-requested-with");
-                      }
-                      return null;
-                    },
-                    onLoadStart: (controller, url) {
-                      setState(() {
-                        _isLoading = true;
-                      });
-                      _injectStealthAndFixes();
-                    },
-                    onLoadStop: (controller, url) async {
-                      final title = await controller.getTitle();
-                      final canGoBack = await controller.canGoBack();
-                      setState(() {
-                        _isLoading = false;
-                        if (url != null) _currentUrl = url.toString();
-                        if (title != null && title.isNotEmpty) _currentTitle = title;
-                        _canGoBack = canGoBack;
-                      });
-                      _injectStealthAndFixes();
-                    },
-                    onProgressChanged: (controller, progress) {
-                      if (progress > 10 && progress < 90) {
-                        _injectStealthAndFixes();
-                      }
-                      if (progress == 100) {
-                        setState(() {
-                          _isLoading = false;
-                        });
-                      }
-                    },
+                ],
+              ),
+            ),
+
+            // Fullscreen Exit Button - Only visible in explicit fullscreen mode
+            if (_isfullscreen)
+              Positioned(
+                bottom: 20,
+                right: 20,
+                child: GestureDetector(
+                  onTap: () {
+                    // Exit fullscreen
+                    _toggleFullscreenVideo();
+                    setState(() {
+                      _isfullscreen = false;
+                      _isHeaderVisible = true;
+                    });
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.5),
+                      border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.fullscreen_exit, color: Colors.white, size: 28),
                   ),
                 ),
-              ],
-            ),
-            if (isLandscape)
+              ),
+
+            // Landscape Controls
+            if (isLandscape && _isHeaderVisible)
               Positioned(
                 top: 16,
                 left: 16,
@@ -392,6 +508,7 @@ class _WebViewPageState extends State<WebViewPage> {
                   ),
                 ),
               ),
+
             if (_isLoading)
                 Container(
                   color: Theme.of(context).scaffoldBackgroundColor,
