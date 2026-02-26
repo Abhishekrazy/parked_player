@@ -6,7 +6,7 @@
         android:label="Parked Player"
         android:name="${applicationName}"
         android:icon="@mipmap/launcher_icon"
-        android:appCategory="game">
+        android:appCategory="video">
         
         <activity
             android:name=".MainActivity"
@@ -32,6 +32,10 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
+
+        <meta-data
+            android:name="com.google.android.gms.car.application"
+            android:resource="@xml/automotive_app_desc" />
 
     </application>
 

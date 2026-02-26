@@ -372,7 +372,13 @@ class _WebViewPageState extends State<WebViewPage> with SingleTickerProviderStat
                           _scrollY = y;
                         },
                         onPermissionRequest: (controller, request) async {
-                          return PermissionResponse(resources: request.resources, action: PermissionResponseAction.GRANT);
+                          final resources = <PermissionResourceType>[];
+                          for (var res in request.resources) {
+                            if (res == PermissionResourceType.PROTECTED_MEDIA_ID) {
+                              resources.add(res);
+                            }
+                          }
+                          return PermissionResponse(resources: resources, action: resources.isEmpty ? PermissionResponseAction.DENY : PermissionResponseAction.GRANT);
                         },
                         shouldInterceptRequest: (controller, request) async {
                           if (request.headers != null) {
