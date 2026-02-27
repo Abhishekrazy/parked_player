@@ -1,15 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:unity_ads_plugin/unity_ads_plugin.dart'; // Unity Ads
 import 'package:shared_preferences/shared_preferences.dart';
-import '../services/ad_block_service.dart';
 import '../services/bookmark_service.dart';
-import '../services/theme_service.dart';
-import '../services/sites_service.dart';
 import '../services/session_service.dart';
 import '../services/history_service.dart';
 import 'settings_page.dart';
@@ -285,7 +281,7 @@ class _WebViewPageState extends State<WebViewPage> with SingleTickerProviderStat
                                     await Clipboard.setData(ClipboardData(text: _currentUrl));
                                     if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('URL Copied'), duration: Duration(seconds: 1)));
                                   } else if (value == 'share') {
-                                    Share.share(_currentUrl);
+                                    SharePlus.instance.share(ShareParams(text: _currentUrl));
                                   }
                                 },
                                 itemBuilder: (context) {
@@ -433,7 +429,7 @@ class _WebViewPageState extends State<WebViewPage> with SingleTickerProviderStat
                             final title = await controller.getTitle();
                             _updateSession(_currentUrl, title ?? '');
                             // Add to history
-                            if (!widget.isIncognito) {
+                            if (!widget.isIncognito && context.mounted) {
                               Provider.of<HistoryService>(context, listen: false).addToHistory(_currentUrl, title ?? '');
                             }
                           }

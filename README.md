@@ -56,6 +56,26 @@ Since this project uses the Logo.dev API, you'll need a token. We use a safe con
 flutter run --dart-define-from-file=local_env.json
 ```
 
+### 3. Build & Release
+Before creating a new release (APK or AAB), always make sure to appropriately bump the version number. A handy dart script is provided.
+
+**Bump Version:**
+```bash
+dart run scripts/bump_version.dart
+```
+
+**Build Release APK:**
+```bash
+flutter build apk --release --no-tree-shake-icons
+```
+Output: `build/app/outputs/flutter-apk/app-release.apk`
+
+**Build Release App Bundle (Play Store):**
+```bash
+flutter build appbundle --release --no-tree-shake-icons
+```
+Output: `build/app/outputs/bundle/release/app-release.aab`
+
 ---
 
 ## 🤝 Contributing
