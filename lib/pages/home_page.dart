@@ -172,11 +172,20 @@ class _VideoLinksPageState extends State<VideoLinksPage> {
     // Determine layout based on orientation
     final orientation = MediaQuery.of(context).orientation;
     final isLandscape = orientation == Orientation.landscape;
-    // In Grid mode: 4 cols landscape, 2 cols portrait
-    // In List mode: 2 cols landscape (maybe?), 1 col portrait
     final int gridCrossAxisCount = isLandscape ? 4 : 2;
 
     return Scaffold(
+      extendBodyBehindAppBar: true,
+      appBar: AppBar(
+        title: const Text('Parked Player'),
+        centerTitle: false,
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        actions: const [
+          SizedBox(width: 8),
+        ],
+      ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _showAddSiteDialog(context),
         backgroundColor: Theme.of(context).primaryColor,
@@ -206,39 +215,134 @@ class _VideoLinksPageState extends State<VideoLinksPage> {
         child: SafeArea(
           child: Column(
             children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
+                child: _SearchBar(isIncognito: isIncognito),
+              ),
               Expanded(
-                child: themeService.viewMode == ViewMode.grid
-                ? ReorderableGridView.count(
-                    padding: const EdgeInsets.fromLTRB(20, 20, 20, 80), // Bottom padding for FAB
-                    physics: const BouncingScrollPhysics(),
-                    crossAxisCount: gridCrossAxisCount,
-                    crossAxisSpacing: 20,
-                    mainAxisSpacing: 20,
-                    childAspectRatio: 1.3,
-                    onReorder: sitesService.reorderSites,
-                    children: sitesService.sites.map((site) {
-                      return _SiteCard(
-                        key: ValueKey(site.id),
-                        site: site,
-                        isIncognito: isIncognito,
-                      );
-                    }).toList(),
+                child: sitesService.sites.isEmpty
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.apps_rounded,
+                          size: 64,
+                          color: Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.3),
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'Add your favorite apps',
+                          style: TextStyle(
+                            fontSize: 18,
+                            color: Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.5),
+                          ),
+                        ),
+                      ],
+                    ),
                   )
-                : ReorderableListView(
-                    padding: const EdgeInsets.fromLTRB(20, 20, 20, 80),
-                    physics: const BouncingScrollPhysics(),
-                    onReorder: sitesService.reorderSites,
-                    children: sitesService.sites.map((site) {
-                      return _SiteListItem(
-                        key: ValueKey(site.id),
-                        site: site,
-                        isIncognito: isIncognito,
-                      );
-                    }).toList(),
-                  ),
+                : (themeService.viewMode == ViewMode.grid
+                    ? ReorderableGridView.count(
+                        padding: const EdgeInsets.fromLTRB(20, 0, 20, 80),
+                        physics: const BouncingScrollPhysics(),
+                        crossAxisCount: gridCrossAxisCount,
+                        crossAxisSpacing: 20,
+                        mainAxisSpacing: 20,
+                        childAspectRatio: 1.3,
+                        onReorder: sitesService.reorderSites,
+                        children: sitesService.sites.map((site) {
+                          return _SiteCard(
+                            key: ValueKey(site.id),
+                            site: site,
+                            isIncognito: isIncognito,
+                          );
+                        }).toList(),
+                      )
+                    : ReorderableListView(
+                        padding: const EdgeInsets.fromLTRB(20, 0, 20, 80),
+                        physics: const BouncingScrollPhysics(),
+                        onReorder: sitesService.reorderSites,
+                        children: sitesService.sites.map((site) {
+                          return _SiteListItem(
+                            key: ValueKey(site.id),
+                            site: site,
+                            isIncognito: isIncognito,
+                          );
+                        }).toList(),
+                      )),
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SearchBar extends StatefulWidget {
+  final bool isIncognito;
+  const _SearchBar({required this.isIncognito});
+
+  @override
+  State<_SearchBar> createState() => _SearchBarState();
+}
+
+class _SearchBarState extends State<_SearchBar> {
+  final TextEditingController _controller = TextEditingController();
+
+  void _submit(String value) {
+    if (value.trim().isEmpty) return;
+    String url = value.trim();
+    if (!url.startsWith('http') && !url.contains('.') || url.contains(' ')) {
+      url = 'https://www.google.com/search?q=${Uri.encodeComponent(url)}';
+    } else if (!url.startsWith('http')) {
+      url = 'https://$url';
+    }
+    
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => WebViewPage(
+          url: url,
+          title: 'Search',
+          isIncognito: widget.isIncognito,
+        ),
+      ),
+    );
+    _controller.clear();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Theme.of(context).brightness == Brightness.dark
+            ? Colors.white.withValues(alpha: 0.1)
+            : Colors.black.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(32),
+        border: Border.all(
+          color: Theme.of(context).dividerColor.withValues(alpha: 0.1),
+          width: 1.5,
+        ),
+      ),
+      child: TextField(
+        controller: _controller,
+        onSubmitted: _submit,
+        style: TextStyle(
+          color: Theme.of(context).textTheme.bodyLarge?.color,
+          fontSize: 16,
+        ),
+        decoration: InputDecoration(
+          hintText: 'Search or enter URL',
+          hintStyle: TextStyle(
+            color: Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.5),
+          ),
+          prefixIcon: Icon(
+            Icons.search_rounded,
+            color: Theme.of(context).primaryColor,
+          ),
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
         ),
       ),
     );

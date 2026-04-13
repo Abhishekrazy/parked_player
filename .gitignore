@@ -52,3 +52,5 @@ local_env.json
 *.iml
 .idea/
 .vscode/
+android/.kotlin
+

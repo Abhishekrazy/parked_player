@@ -77,104 +77,57 @@ class SitesService extends ChangeNotifier {
     if (sitesString != null) {
       final List<dynamic> decoded = jsonDecode(sitesString);
       _sites = decoded.map((e) => SiteItem.fromJson(e)).toList();
+      
+      // Ensure system sites are present (migration/restoration)
+      _ensureSystemSites();
     } else {
       _initializeDefaultSites();
     }
     notifyListeners();
   }
 
+  void _ensureSystemSites() {
+    final systemIds = ['incognito', 'bookmarks', 'custom_url', 'settings'];
+    bool changed = false;
+    
+    for (final id in systemIds) {
+      if (!_sites.any((s) => s.id == id)) {
+        // Find where to insert it based on original order
+        final systemSite = _getSystemSite(id);
+        if (systemSite != null) {
+          // Add to start for now
+          _sites.insert(0, systemSite);
+          changed = true;
+        }
+      }
+    }
+    
+    if (changed) {
+      _saveSites();
+    }
+  }
+
+  SiteItem? _getSystemSite(String id) {
+     switch (id) {
+       case 'incognito':
+         return SiteItem(id: 'incognito', name: 'Incognito', url: 'TOGGLE_INCOGNITO', iconCode: Icons.privacy_tip.codePoint, colorValue: 0xFFF44336, isSystem: true);
+       case 'bookmarks':
+         return SiteItem(id: 'bookmarks', name: 'Saved', url: 'BOOKMARKS_PAGE', iconCode: Icons.bookmarks.codePoint, colorValue: 0xFF4CAF50, isSystem: true);
+       case 'custom_url':
+         return SiteItem(id: 'custom_url', name: 'Custom URL', url: 'CUSTOM_URL', iconCode: Icons.link.codePoint, colorValue: 0xFF2196F3, isSystem: true);
+       case 'settings':
+         return SiteItem(id: 'settings', name: 'Settings', url: 'SETTINGS_PAGE', iconCode: Icons.settings.codePoint, colorValue: 0xFF9E9E9E, isSystem: true);
+       default:
+         return null;
+     }
+  }
+
   void _initializeDefaultSites() {
     _sites = [
-      SiteItem(
-        id: 'youtube',
-        name: 'YouTube',
-        url: 'https://www.youtube.com',
-        asset: 'assets/youtube.svg',
-        type: 'svg',
-        colorValue: 0xFFFF0000,
-      ),
-      SiteItem(
-        id: 'vimeo',
-        name: 'Vimeo',
-        url: 'https://vimeo.com',
-        asset: 'assets/vimeo.svg',
-        type: 'svg',
-        colorValue: 0xFF1AB7EA,
-      ),
-      SiteItem(
-        id: '9anime',
-        name: '9anime',
-        url: 'https://9animetv.to',
-        asset: 'assets/9anime.svg',
-        type: 'svg',
-        colorValue: 0xFF6A1B9A,
-      ),
-      SiteItem(
-        id: 'cineby',
-        name: 'Cineby',
-        url: 'https://cineby.app',
-        asset: 'assets/Cineby.svg',
-        type: 'svg',
-        colorValue: 0xFFC62828,
-      ),
-      SiteItem(
-        id: 'twitch',
-        name: 'Twitch',
-        url: 'https://www.twitch.tv',
-        asset: 'assets/twitch.svg',
-        type: 'svg',
-        colorValue: 0xFF9146FF,
-      ),
-      SiteItem(
-        id: 'dailymotion',
-        name: 'Dailymotion',
-        url: 'https://www.dailymotion.com',
-        asset: 'assets/dailymotion.svg',
-        type: 'svg',
-        colorValue: 0xFF0066DC,
-      ),
-      SiteItem(
-        id: 'google',
-        name: 'Google',
-        url: 'https://www.google.com',
-        iconCode: Icons.search_rounded.codePoint,
-        type: 'icon',
-        colorValue: 0xFF4285F4,
-      ),
-      SiteItem(
-        id: 'custom_url',
-        name: 'Open URL',
-        url: 'CUSTOM_URL',
-        iconCode: Icons.link_rounded.codePoint,
-        type: 'icon',
-        colorValue: 0xFF00C853,
-      ),
-      SiteItem(
-        id: 'saved_pages',
-        name: 'Saved Pages',
-        url: 'BOOKMARKS_PAGE',
-        iconCode: Icons.bookmarks_rounded.codePoint,
-        type: 'icon',
-        colorValue: 0xFFFFA000,
-      ),
-      SiteItem(
-        id: 'settings',
-        name: 'Settings',
-        url: 'SETTINGS_PAGE',
-        iconCode: Icons.settings_rounded.codePoint,
-        type: 'icon',
-        colorValue: 0xFF607D8B,
-        isSystem: true,
-      ),
-      SiteItem(
-        id: 'incognito',
-        name: 'Incognito',
-        url: 'TOGGLE_INCOGNITO',
-        iconCode: Icons.privacy_tip_outlined.codePoint,
-        type: 'icon',
-        colorValue: 0xFF9E9E9E, 
-        isSystem: true,
-      ),
+      _getSystemSite('incognito')!,
+      _getSystemSite('bookmarks')!,
+      _getSystemSite('custom_url')!,
+      _getSystemSite('settings')!,
     ];
     _saveSites();
   }
